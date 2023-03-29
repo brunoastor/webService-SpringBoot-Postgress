@@ -3,14 +3,16 @@ package com.example.course.services;
 import java.util.List;
 import java.util.Optional;
 
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.example.course.entities.User;
 import com.example.course.repositories.UserRepository;
+import com.example.course.services.exceptions.DatabaseException;
 import com.example.course.services.exceptions.ResourceNotFoundException;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class UserService {
@@ -25,27 +27,33 @@ public class UserService {
 	public User findById(Long id) {
 		Optional<User> obj = repository.findById(id);
 		return obj.orElseThrow(() -> new ResourceNotFoundException(id));
-
-		// return obj.get(); !--Retorno antes do tratamento de exceção -->
 	}
 
 	public User insert(User obj) {
 		return repository.save(obj);
 	}
-
+	
+	//TODO
+	//tentar deletar um ID não cadastrado não está lançando exceção
+	//Verificar com EmptyResultDataAccessException
 	public void delete(Long id) {
 		try {
 			repository.deleteById(id);
-		} catch (EmptyResultDataAccessException e) {
+		} catch (DataIntegrityViolationException e) {
+			throw new DatabaseException(e.getMessage());
+		} catch (RuntimeException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public User update(Long id, User obj) {
+		try {
+			User entity = repository.getReferenceById(id);
+			updateData(entity, obj);
+			return repository.save(entity);			
+		} catch (EntityNotFoundException e) {
 			throw new ResourceNotFoundException(id);
 		}
-
-	}
-
-	public User update(Long id, User obj) {
-		User entity = repository.getReferenceById(id);
-		updateData(entity, obj);
-		return repository.save(entity);
 	}
 
 	private void updateData(User entity, User obj) {
